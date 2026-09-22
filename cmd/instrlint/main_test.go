@@ -46,3 +46,52 @@ func TestCLIExitCodesAndStreams(t *testing.T) {
 		})
 	}
 }
+
+func TestCLIExcludesMultipleDirectories(t *testing.T) {
+	root := t.TempDir()
+	for _, name := range []string{"AGENTS.md", ".omx/AGENTS.md", ".codegraph/AGENTS.md"} {
+		path := filepath.Join(root, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("Always run tests.\n- always run tests\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, tt := range []struct {
+		name string
+		args []string
+		want int
+	}{
+		{"all", []string{root}, 3},
+		{"single", []string{root, "--exclude", ".omx"}, 2},
+		{"multiple", []string{root, "--exclude", ".omx", "--exclude", ".codegraph"}, 1},
+		{"before target", []string{"--exclude", ".omx", root}, 2},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			code := run(tt.args, &stdout, &stderr)
+			if code != 1 || stderr.Len() != 0 || strings.Count(stdout.String(), "duplicate-instruction") != tt.want {
+				t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+			}
+		})
+	}
+}
+
+func TestCLIRejectsInvalidExclude(t *testing.T) {
+	for _, exclude := range []string{filepath.Join(t.TempDir(), "absolute"), filepath.Join("..", "outside"), ""} {
+		var stdout, stderr bytes.Buffer
+		code := run([]string{t.TempDir(), "--exclude", exclude}, &stdout, &stderr)
+		if code != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), "exclude") {
+			t.Fatalf("exclude=%q code=%d stdout=%q stderr=%q", exclude, code, stdout.String(), stderr.String())
+		}
+	}
+}
+
+func TestCLIHelpDescribesExclude(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"--help"}, &stdout, &stderr)
+	if code != 0 || stderr.Len() != 0 || !strings.Contains(stdout.String(), "--exclude <directory>") {
+		t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	}
+}

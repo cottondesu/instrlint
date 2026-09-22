@@ -11,7 +11,7 @@ import (
 func TestDiscover(t *testing.T) {
 	root := t.TempDir()
 	for _, name := range []string{
-		"AGENTS.md", "nested/AGENTS.md", ".git/AGENTS.md",
+		"AGENTS.md", "nested/AGENTS.md", ".github/AGENTS.md", ".git/AGENTS.md",
 		"node_modules/AGENTS.md", "vendor/AGENTS.md", "dist/AGENTS.md",
 		"build/AGENTS.md", "out/AGENTS.md", "coverage/AGENTS.md",
 		"tmp/AGENTS.md", ".cache/AGENTS.md",
@@ -29,13 +29,13 @@ func TestDiscover(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{filepath.Join(root, "AGENTS.md"), filepath.Join(root, "nested", "AGENTS.md")}
+	want := []string{filepath.Join(root, ".github", "AGENTS.md"), filepath.Join(root, "AGENTS.md"), filepath.Join(root, "nested", "AGENTS.md")}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("Discover() = %v, want %v", got, want)
 	}
 
 	file, err := Discover(filepath.Join(root, "nested", "AGENTS.md"))
-	if err != nil || !reflect.DeepEqual(file, want[1:]) {
+	if err != nil || !reflect.DeepEqual(file, want[2:]) {
 		t.Fatalf("Discover(file) = %v, %v", file, err)
 	}
 }
@@ -61,6 +61,63 @@ func TestDiscoverEmptyAndSymlink(t *testing.T) {
 	}
 	if _, err := Discover(filepath.Join(root, "nested", "loop", "missing")); err == nil {
 		t.Fatal("broken path through symlink accepted")
+	}
+}
+
+func TestDiscoverWithExcludesSkipsOnlyMatchingDirectories(t *testing.T) {
+	root := t.TempDir()
+	for _, name := range []string{
+		"AGENTS.md", ".omx/AGENTS.md", ".omx-backup/AGENTS.md",
+		"nested/.omx/AGENTS.md", ".codegraph/AGENTS.md",
+		"generated/sessions/AGENTS.md", "generated/sessions-backup/AGENTS.md", "generated/other/AGENTS.md",
+		"nested/generated/sessions/AGENTS.md",
+		"builder/AGENTS.md", "build/AGENTS.md",
+	} {
+		path := filepath.Join(root, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("Run tests.\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	got, err := DiscoverWithExcludes(root, []string{".omx", ".codegraph", filepath.Join("generated", "sessions")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		filepath.Join(root, ".omx-backup", "AGENTS.md"),
+		filepath.Join(root, "AGENTS.md"),
+		filepath.Join(root, "builder", "AGENTS.md"),
+		filepath.Join(root, "generated", "other", "AGENTS.md"),
+		filepath.Join(root, "generated", "sessions-backup", "AGENTS.md"),
+		filepath.Join(root, "nested", "generated", "sessions", "AGENTS.md"),
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("DiscoverWithExcludes() = %v, want %v", got, want)
+	}
+}
+
+func TestDiscoverWithExcludesRejectsUnsafePaths(t *testing.T) {
+	root := t.TempDir()
+	for _, exclude := range []string{"", ".", "..", filepath.Join("..", "outside"), filepath.Join(root, "absolute")} {
+		t.Run(exclude, func(t *testing.T) {
+			if _, err := DiscoverWithExcludes(root, []string{exclude}); err == nil {
+				t.Fatalf("exclude %q accepted", exclude)
+			}
+		})
+	}
+}
+
+func TestDiscoverWithExcludesIgnoresExcludesForFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "AGENTS.md")
+	if err := os.WriteFile(path, []byte("Run tests.\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := DiscoverWithExcludes(path, []string{".."})
+	if err != nil || !reflect.DeepEqual(got, []string{path}) {
+		t.Fatalf("DiscoverWithExcludes(file) = %v, %v", got, err)
 	}
 }
 

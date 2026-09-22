@@ -1,3 +1,5 @@
 /.codegraph
 /.omx/
 /instrlint
+.omx/
+!/internal/instrlint/testdata/regression/exclude-generated/.omx/

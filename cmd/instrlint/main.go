@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/cottondesu/instrlint/internal/instrlint"
 )
@@ -14,15 +15,33 @@ func main() {
 
 func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 1 && (args[0] == "-h" || args[0] == "--help") {
-		fmt.Fprintln(stdout, "Usage: instrlint <file-or-directory>\nLint AGENTS.md files for duplicate instructions.")
+		fmt.Fprintln(stdout, "Usage: instrlint <file-or-directory> [--exclude <directory>]...\nLint AGENTS.md files for duplicate instructions.\n--exclude <directory>  Skip a directory during recursive scanning; may be specified multiple times.")
 		return 0
 	}
-	if len(args) != 1 || args[0] == "" || args[0][0] == '-' {
-		fmt.Fprintln(stderr, "usage: instrlint <file-or-directory> (use -h for help)")
+	var path string
+	var excludes []string
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--exclude" {
+			if i+1 == len(args) {
+				fmt.Fprintln(stderr, "usage: instrlint <file-or-directory> [--exclude <directory>]... (use -h for help)")
+				return 2
+			}
+			i++
+			excludes = append(excludes, args[i])
+			continue
+		}
+		if args[i] == "" || strings.HasPrefix(args[i], "-") || path != "" {
+			fmt.Fprintln(stderr, "usage: instrlint <file-or-directory> [--exclude <directory>]... (use -h for help)")
+			return 2
+		}
+		path = args[i]
+	}
+	if path == "" {
+		fmt.Fprintln(stderr, "usage: instrlint <file-or-directory> [--exclude <directory>]... (use -h for help)")
 		return 2
 	}
 
-	result, err := instrlint.Lint(args[0])
+	result, err := instrlint.LintWithExcludes(path, excludes)
 	if err != nil {
 		fmt.Fprintln(stderr, "instrlint:", err)
 		return 2

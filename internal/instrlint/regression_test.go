@@ -40,6 +40,25 @@ func TestRegressionCorpus(t *testing.T) {
 	}
 }
 
+func TestRegressionExcludeGeneratedSessions(t *testing.T) {
+	root := filepath.Join("testdata", "regression", "exclude-generated")
+	all, err := Lint(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if all.Files != 3 || len(all.Diagnostics) != 3 {
+		t.Fatalf("Lint(all) = %#v", all)
+	}
+
+	filtered, err := LintWithExcludes(root, []string{".omx"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filtered.Files != 1 || len(filtered.Diagnostics) != 1 || filtered.Diagnostics[0].File != filepath.Join(root, "AGENTS.md") {
+		t.Fatalf("LintWithExcludes() = %#v", filtered)
+	}
+}
+
 func TestParseNestedMultilineAndLineEndings(t *testing.T) {
 	path := filepath.Join("testdata", "regression", "nested-multiline", "AGENTS.md")
 	data, err := os.ReadFile(path)

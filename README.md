@@ -20,7 +20,7 @@ AI coding agents increasingly rely on repository-level instructions such as `AGE
 
 ## Supported scope
 
-v0.1.1 scans `AGENTS.md` files for duplicate instructions. It accepts an individual file path directly, regardless of its name. Directory scans find `AGENTS.md` recursively and skip `.git`, `node_modules`, `vendor`, `dist`, `build`, `out`, `coverage`, `tmp`, and `.cache`. Directory symlinks are not followed. Duplicates are compared within each file, not across files.
+v0.1.2 scans `AGENTS.md` files for duplicate instructions. It accepts an individual file path directly, regardless of its name. Directory scans find `AGENTS.md` recursively and skip `.git`, `node_modules`, `vendor`, `dist`, `build`, `out`, `coverage`, `tmp`, and `.cache`. Directory symlinks are not followed. Duplicates are compared within each file, not across files.
 
 The parser recognizes unordered and ordered list items, nested lists, indented continuation lines within list items, and common imperative paragraphs in English and Japanese. List items ending in `:` are treated as introductions rather than instructions. It skips headings, backtick and tilde fenced code, indented code outside lists, HTML comments, horizontal rules, blockquotes, and blank lines. It is a small Markdown subset, not a full Markdown parser. Invalid UTF-8 is an error.
 
@@ -40,11 +40,15 @@ The Go module is `github.com/cottondesu/instrlint`.
 
 ```sh
 instrlint .
+instrlint . --exclude .omx
+instrlint . --exclude .omx --exclude generated
 instrlint AGENTS.md
 instrlint --help
 ```
 
 If built locally and not on your `PATH`, use `./instrlint` instead. A directory with no `AGENTS.md` prints `no supported instruction files found` and exits successfully. Clean files produce no output.
+
+`--exclude` may be repeated to skip directories before recursive scanning enters them. A directory name such as `.omx` matches at any depth; a relative directory path such as `tools/cache` matches only from the scan root. Absolute paths and paths escaping the scan root are rejected. The option is ignored when scanning a file directly. This is not glob or gitignore syntax; negation is not supported.
 
 ## Example output
 
@@ -74,7 +78,7 @@ go test -run '^$' -bench=. ./...
 
 ## Limitations
 
-v0.1.1 does not detect semantic similarity, conflicting or ambiguous instructions. It is not a full Markdown parser and has no LLM integration, configuration, or autofix. Paragraph recognition is intentionally conservative and may miss less common imperative forms. Blockquotes and emphasis-only variations are not analyzed as equivalent instructions. It never executes Markdown content.
+v0.1.2 does not detect semantic similarity, conflicting or ambiguous instructions. It is not a full Markdown parser and has no LLM integration, configuration, or autofix. Paragraph recognition is intentionally conservative and may miss less common imperative forms. Blockquotes and emphasis-only variations are not analyzed as equivalent instructions. It never executes Markdown content.
 
 ## License
 

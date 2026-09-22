@@ -116,7 +116,11 @@ type Result struct {
 }
 
 func Lint(path string) (Result, error) {
-	files, err := Discover(path)
+	return LintWithExcludes(path, nil)
+}
+
+func LintWithExcludes(path string, excludes []string) (Result, error) {
+	files, err := DiscoverWithExcludes(path, excludes)
 	if err != nil {
 		return Result{}, err
 	}
