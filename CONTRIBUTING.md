@@ -27,3 +27,7 @@ Keep conflict detection conservative and explainable. Any new conflict pattern m
 ## Pull requests
 
 Keep changes focused, preserve the documented exit codes and stdout/stderr behavior, and explain any parser behavior change. Before opening a pull request, run `gofmt`, `go vet ./...`, `go test ./...`, and `go build ./cmd/instrlint`. Pull requests are expected to pass the GitHub Actions CI workflow, including the race test.
+
+## Releases
+
+Version tag pushes trigger the distribution workflow and create a draft GitHub Release. Maintainers review its assets and notes before publishing; see [docs/releasing.md](docs/releasing.md).

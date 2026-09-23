@@ -1,0 +1,92 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [darwin, linux, windows]
+        arch: [amd64, arm64]
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Build release archive
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: bash scripts/package-release.sh "$VERSION" "${{ matrix.os }}" "${{ matrix.arch }}" dist
+
+      - name: Upload archive for release job
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-${{ matrix.os }}-${{ matrix.arch }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download release archives
+        uses: actions/download-artifact@v8
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+
+      - name: Check assets and create checksums
+        shell: bash
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          [[ $VERSION =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+
+          expected=$(mktemp)
+          actual=$(mktemp)
+          trap 'rm -f "$expected" "$actual"' EXIT
+          for target in darwin_amd64 darwin_arm64 linux_amd64 linux_arm64 windows_amd64 windows_arm64; do
+            extension=tar.gz
+            if [[ $target == windows_* ]]; then extension=zip; fi
+            printf 'instrlint_%s_%s.%s\n' "$VERSION" "$target" "$extension"
+          done | sort > "$expected"
+          find dist -mindepth 1 -maxdepth 1 -type f -print | sed 's#^dist/##' | sort > "$actual"
+          [[ $(wc -l < "$actual") -eq 6 ]]
+          diff -u "$expected" "$actual"
+
+          archives=()
+          while IFS= read -r archive; do archives+=("$archive"); done < "$expected"
+          (cd dist && sha256sum "${archives[@]}" > checksums.txt)
+          [[ $(wc -l < dist/checksums.txt) -eq 6 ]]
+          (cd dist && sha256sum -c checksums.txt)
+
+      - name: Create draft GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            echo "Release already exists for $VERSION" >&2
+            exit 1
+          fi
+          gh release create "$VERSION" dist/* \
+            --draft --verify-tag --generate-notes --title "InstrLint $VERSION"

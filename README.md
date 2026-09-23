@@ -41,21 +41,28 @@ Supported patterns are deliberately narrow:
 
 Opposite-polarity matching is limited to the action verbs `add`, `check`, `commit`, `delete`, `edit`, `execute`, `follow`, `include`, `install`, `keep`, `modify`, `remove`, `run`, `use`, and `write`. Matching is ASCII-case-insensitive and requires the normalized action, object, and scope to agree exactly where applicable. Different scopes remain clean. For example, `Use npm for publishing.` and `Use pnpm for local development.` do not conflict. Unscoped alternatives such as `Use npm.` and `Use pnpm.` are intentionally not reported because the surrounding scope is unknown.
 
-## Build from source
+## Installation
 
-With Go 1.23 or newer, from the repository root:
+### Go install
 
-```sh
-go build ./cmd/instrlint
-```
-
-The Go module is `github.com/cottondesu/instrlint`.
-
-To install the latest published release:
+With Go 1.23 or newer, install the latest published version:
 
 ```sh
 go install github.com/cottondesu/instrlint/cmd/instrlint@latest
 ```
+
+Make sure your Go binary directory (usually `$(go env GOPATH)/bin`) is on your `PATH`.
+
+### Prebuilt binaries
+
+Starting with v0.2.1, download the archive for your platform from [GitHub Releases](https://github.com/cottondesu/instrlint/releases). Builds cover both `amd64` and `arm64`:
+
+- macOS and Linux: `instrlint_vX.Y.Z_<os>_<arch>.tar.gz`
+- Windows: `instrlint_vX.Y.Z_windows_<arch>.zip`
+
+Each archive contains `instrlint` (or `instrlint.exe`) and `LICENSE`. Use the release's `checksums.txt` to verify the archive's SHA256 checksum before extracting it.
+
+To build from source instead, run `go build ./cmd/instrlint` at the repository root.
 
 ## Quick Start
 
