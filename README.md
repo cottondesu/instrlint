@@ -1,5 +1,7 @@
 # InstrLint
 
+[![CI](https://github.com/cottondesu/instrlint/actions/workflows/ci.yml/badge.svg)](https://github.com/cottondesu/instrlint/actions/workflows/ci.yml)
+
 Fast, zero-dependency linter for `AGENTS.md` and AI coding-agent instruction files.
 
 [GitHub repository](https://github.com/cottondesu/instrlint)

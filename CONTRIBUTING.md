@@ -22,4 +22,4 @@ Parser bug reports should include a minimal, sanitized `AGENTS.md`, expected and
 
 ## Pull requests
 
-Keep changes focused, preserve the documented exit codes and stdout/stderr behavior, and explain any parser behavior change. Before opening a pull request, run `gofmt`, `go vet ./...`, `go test ./...`, and `go build ./cmd/instrlint`.
+Keep changes focused, preserve the documented exit codes and stdout/stderr behavior, and explain any parser behavior change. Before opening a pull request, run `gofmt`, `go vet ./...`, `go test ./...`, and `go build ./cmd/instrlint`. Pull requests are expected to pass the GitHub Actions CI workflow, including the race test.
