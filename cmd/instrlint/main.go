@@ -15,7 +15,7 @@ func main() {
 
 func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 1 && (args[0] == "-h" || args[0] == "--help") {
-		fmt.Fprintln(stdout, "Usage: instrlint <file-or-directory> [--exclude <directory>]...\nLint AGENTS.md files for duplicate instructions.\n--exclude <directory>  Skip a directory during recursive scanning; may be specified multiple times.")
+		fmt.Fprintln(stdout, "Usage: instrlint <file-or-directory> [--exclude <directory>]...\nLint AGENTS.md files for duplicate and conflicting instructions.\n--exclude <directory>  Skip a directory during recursive scanning; may be specified multiple times.")
 		return 0
 	}
 	var path string

@@ -12,10 +12,14 @@ func TestCLIExitCodesAndStreams(t *testing.T) {
 	root := t.TempDir()
 	clean := filepath.Join(root, "clean.md")
 	duplicate := filepath.Join(root, "AGENTS.md")
+	conflict := filepath.Join(root, "conflict.md")
 	if err := os.WriteFile(clean, []byte("Run unit tests.\nRun integration tests.\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(duplicate, []byte("Always run tests.\n- always run tests\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(conflict, []byte("Always use npm.\nNever use npm.\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	tests := []struct {
@@ -27,6 +31,7 @@ func TestCLIExitCodesAndStreams(t *testing.T) {
 	}{
 		{"clean file", []string{clean}, 0, "", ""},
 		{"duplicate file", []string{duplicate}, 1, "duplicate-instruction", ""},
+		{"conflict file", []string{conflict}, 1, "conflicting-instruction", ""},
 		{"directory", []string{root}, 1, "duplicate-instruction", ""},
 		{"missing path", []string{filepath.Join(root, "missing")}, 2, "", "access"},
 		{"invalid usage", []string{"-bad"}, 2, "", "usage"},

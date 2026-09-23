@@ -3,6 +3,7 @@ package instrlint
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -135,6 +136,29 @@ func LintWithExcludes(path string, excludes []string) (Result, error) {
 			return Result{}, fmt.Errorf("parse %q: %w", file, err)
 		}
 		diagnostics = append(diagnostics, Duplicates(file, instructions)...)
+		diagnostics = append(diagnostics, Conflicts(file, instructions)...)
 	}
+	sort.SliceStable(diagnostics, func(i, j int) bool {
+		left, right := diagnostics[i], diagnostics[j]
+		if left.File != right.File {
+			return left.File < right.File
+		}
+		if left.Line != right.Line {
+			return left.Line < right.Line
+		}
+		if left.Column != right.Column {
+			return left.Column < right.Column
+		}
+		if left.Rule != right.Rule {
+			return left.Rule < right.Rule
+		}
+		if left.Related.File != right.Related.File {
+			return left.Related.File < right.Related.File
+		}
+		if left.Related.Line != right.Related.Line {
+			return left.Related.Line < right.Related.Line
+		}
+		return left.Related.Column < right.Related.Column
+	})
 	return Result{Files: len(files), Diagnostics: diagnostics}, nil
 }

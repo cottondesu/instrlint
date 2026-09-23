@@ -8,10 +8,14 @@ import (
 
 func Report(w io.Writer, diagnostics []Diagnostic) error {
 	for _, diagnostic := range diagnostics {
-		if _, err := fmt.Fprintf(w, "%s:%d:%d: %s %s: %s (first at %s:%d)\n",
+		relatedLabel := "first at"
+		if diagnostic.Rule == "conflicting-instruction" {
+			relatedLabel = "conflicts with"
+		}
+		if _, err := fmt.Fprintf(w, "%s:%d:%d: %s %s: %s (%s %s:%d)\n",
 			diagnostic.File, diagnostic.Line, diagnostic.Column,
 			diagnostic.Severity, diagnostic.Rule, diagnostic.Message,
-			diagnostic.Related.File, diagnostic.Related.Line); err != nil {
+			relatedLabel, diagnostic.Related.File, diagnostic.Related.Line); err != nil {
 			return err
 		}
 	}
