@@ -3,3 +3,5 @@
 /instrlint
 .omx/
 !/internal/instrlint/testdata/regression/exclude-generated/.omx/
+!/internal/instrlint/testdata/regression/exclude-generated-state/.omx/
+!/internal/instrlint/testdata/regression/exclude-generated-state/.omx/**

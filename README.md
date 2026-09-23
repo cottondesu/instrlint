@@ -20,11 +20,11 @@ AI coding agents increasingly rely on repository-level instructions such as `AGE
 
 ## Supported scope
 
-v0.1.2 scans `AGENTS.md` files for duplicate instructions. It accepts an individual file path directly, regardless of its name. Directory scans find `AGENTS.md` recursively and skip `.git`, `node_modules`, `vendor`, `dist`, `build`, `out`, `coverage`, `tmp`, and `.cache`. Directory symlinks are not followed. Duplicates are compared within each file, not across files.
+InstrLint scans `AGENTS.md` files for duplicate instructions. It accepts an individual file path directly, regardless of its name. Directory scans find `AGENTS.md` recursively and skip `.git`, `node_modules`, `vendor`, `dist`, `build`, `out`, `coverage`, `tmp`, and `.cache`. Directory symlinks are not followed. Duplicates are compared within each file, not across files.
 
 The parser recognizes unordered and ordered list items, nested lists, indented continuation lines within list items, and common imperative paragraphs in English and Japanese. List items ending in `:` are treated as introductions rather than instructions. It skips headings, backtick and tilde fenced code, indented code outside lists, HTML comments, horizontal rules, blockquotes, and blank lines. It is a small Markdown subset, not a full Markdown parser. Invalid UTF-8 is an error.
 
-Normalization removes list markers, folds ASCII case outside inline code, collapses whitespace, and ignores light sentence-ending punctuation. Inline code remains case-sensitive. Emphasis markers are retained to avoid broad Markdown rewriting. Other Unicode characters are left as-is; semantically similar wording is not considered equal.
+Normalization removes list markers, folds ASCII case outside inline code, collapses whitespace, and ignores light sentence-ending punctuation. Inline code remains case-sensitive. Emphasis markers are retained to avoid broad Markdown rewriting, so emphasis-only variations are syntax-sensitive. Emphasis-only paragraphs that begin with Markdown punctuation are outside the recognized imperative-paragraph subset. Other Unicode characters are left as-is; semantically similar wording is not considered equal.
 
 ## Build from source
 
@@ -35,6 +35,12 @@ go build ./cmd/instrlint
 ```
 
 The Go module is `github.com/cottondesu/instrlint`.
+
+To install the latest published release:
+
+```sh
+go install github.com/cottondesu/instrlint/cmd/instrlint@latest
+```
 
 ## Quick Start
 
@@ -76,9 +82,15 @@ go vet ./...
 go test -run '^$' -bench=. ./...
 ```
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the regression-fixture workflow and pull request expectations.
+
+## Reporting parser bugs
+
+Open a [GitHub issue](https://github.com/cottondesu/instrlint/issues) with a minimal, sanitized `AGENTS.md`, the expected and actual results, the InstrLint version, and the operating system. Remove repository names, private paths, URLs, credentials, and proprietary instructions before sharing the input.
+
 ## Limitations
 
-v0.1.2 does not detect semantic similarity, conflicting or ambiguous instructions. It is not a full Markdown parser and has no LLM integration, configuration, or autofix. Paragraph recognition is intentionally conservative and may miss less common imperative forms. Blockquotes and emphasis-only variations are not analyzed as equivalent instructions. It never executes Markdown content.
+InstrLint does not detect semantic similarity, conflicting or ambiguous instructions. It is not a full CommonMark parser and has no LLM integration, configuration, or autofix. Paragraph recognition is intentionally conservative and may miss less common imperative forms. Blockquotes are excluded because they may be quotations, and emphasis-only variations are not analyzed as equivalent instructions. Linting is local and deterministic: InstrLint does not use the network, execute Markdown content, or collect telemetry.
 
 ## License
 
