@@ -66,12 +66,12 @@ func TestParseNestedMultilineAndLineEndings(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []Instruction{
-		{Text: "Always run the complete test suite before committing changes to the repository.", Line: 4, Column: 1},
-		{Text: "Run unit tests.", Line: 6, Column: 1},
-		{Text: "Run integration tests.", Line: 7, Column: 1},
+		{Text: "Always run the complete test suite before committing changes to the repository.", Line: 4, Column: 3},
+		{Text: "Run unit tests.", Line: 6, Column: 3},
+		{Text: "Run integration tests.", Line: 7, Column: 3},
 		{Text: "Always run the complete test suite before committing changes to the repository.", Line: 8, Column: 1},
-		{Text: "Run tests on Linux.", Line: 11, Column: 1},
-		{Text: "Run tests on Windows.", Line: 12, Column: 1},
+		{Text: "Run tests on Linux.", Line: 11, Column: 5},
+		{Text: "Run tests on Windows.", Line: 12, Column: 5},
 	}
 	for _, tt := range []struct {
 		name string
@@ -113,7 +113,7 @@ func TestParseListMarkerVariants(t *testing.T) {
 		{Text: "Keep dependencies minimal.", Line: 1, Column: 1},
 		{Text: "Do not edit generated files.", Line: 2, Column: 1},
 		{Text: "Run tests.", Line: 3, Column: 1},
-		{Text: "Run unit tests.", Line: 5, Column: 1},
+		{Text: "Run unit tests.", Line: 5, Column: 3},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("Parse() = %#v, want %#v", got, want)

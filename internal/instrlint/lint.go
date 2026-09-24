@@ -27,7 +27,7 @@ type Diagnostic struct {
 
 func Normalize(text string) string {
 	text = strings.TrimSpace(text)
-	if item, ok := stripListMarker(text); ok {
+	if item, _, ok := stripListMarker(text); ok {
 		text = item
 	}
 	text = strings.Join(strings.Fields(text), " ")

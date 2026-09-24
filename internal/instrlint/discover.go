@@ -33,7 +33,7 @@ func DiscoverWithExcludes(path string, excludes []string) ([]string, error) {
 	excludedNames := make(map[string]bool)
 	excludedPaths := make(map[string]bool)
 	for _, exclude := range excludes {
-		isPath := strings.ContainsRune(exclude, filepath.Separator)
+		isPath := strings.ContainsRune(exclude, '/') || strings.ContainsRune(exclude, filepath.Separator)
 		clean := filepath.Clean(exclude)
 		if exclude == "" || clean == "." || clean == ".." || filepath.IsAbs(clean) ||
 			filepath.VolumeName(clean) != "" || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {

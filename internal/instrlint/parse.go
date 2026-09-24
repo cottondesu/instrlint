@@ -30,10 +30,12 @@ func Parse(data []byte) ([]Instruction, error) {
 			current = Instruction{}
 		}
 	}
-	for i, raw := range strings.Split(string(data), "\n") {
+	lines := strings.Split(string(data), "\n")
+	var listContentIndent int
+	for i, raw := range lines {
 		line := strings.TrimSuffix(raw, "\r")
-		trimmed := strings.TrimSpace(line)
 		indent := len(line) - len(strings.TrimLeft(line, " \t"))
+		trimmed := strings.TrimSpace(line)
 		if fence != 0 {
 			if marker, length := fenceMarker(trimmed); marker == fence && length >= fenceLength &&
 				((fenceIndent <= 3 && indent <= 3) || (fenceIndent > 3 && indent >= fenceIndent && indent <= fenceIndent+3)) &&
@@ -42,18 +44,8 @@ func Parse(data []byte) ([]Instruction, error) {
 			}
 			continue
 		}
-		if inComment {
-			if strings.Contains(trimmed, "-->") {
-				inComment = false
-			}
-			continue
-		}
-		if strings.Contains(trimmed, "<!--") {
-			flush()
-			inList = false
-			inComment = !strings.Contains(trimmed, "-->")
-			continue
-		}
+		line, inComment = stripHTMLComments(line, inComment)
+		trimmed = strings.TrimSpace(line)
 		if trimmed == "" {
 			flush()
 			inList = false
@@ -72,12 +64,13 @@ func Parse(data []byte) ([]Instruction, error) {
 			inList = false
 			continue
 		}
-		if item, ok := stripListMarker(trimmed); ok && (indent <= 3 || inList && indent <= listIndent+4) {
+		if item, markerWidth, ok := stripListMarker(trimmed); ok && (indent <= 3 || inList && indent <= listContentIndent+3) {
 			flush()
 			inList, listIndent = true, indent
+			listContentIndent = indent + markerWidth
 			if item != "" && !strings.HasSuffix(item, ":") &&
 				!(strings.HasPrefix(item, "`") && strings.HasSuffix(item, "`")) {
-				current = Instruction{Text: item, Line: i + 1, Column: 1}
+				current = Instruction{Text: item, Line: i + 1, Column: indent + 1}
 			}
 			continue
 		}
@@ -90,12 +83,51 @@ func Parse(data []byte) ([]Instruction, error) {
 		if indent >= 4 {
 			continue
 		}
-		if isInstructionParagraph(trimmed) {
-			instructions = append(instructions, Instruction{Text: trimmed, Line: i + 1, Column: 1})
+		if isInstructionParagraph(trimmed) && !nextLineIsSetextUnderline(lines, i) {
+			instructions = append(instructions, Instruction{Text: trimmed, Line: i + 1, Column: indent + 1})
 		}
 	}
 	flush()
 	return instructions, nil
+}
+
+func stripHTMLComments(line string, inComment bool) (string, bool) {
+	if !inComment && !strings.Contains(line, "<!--") {
+		return line, false
+	}
+	var visible strings.Builder
+	for line != "" {
+		if inComment {
+			end := strings.Index(line, "-->")
+			if end < 0 {
+				return visible.String(), true
+			}
+			line = line[end+3:]
+			inComment = false
+			continue
+		}
+		start := strings.Index(line, "<!--")
+		if start < 0 {
+			visible.WriteString(line)
+			break
+		}
+		visible.WriteString(line[:start])
+		line = line[start+4:]
+		inComment = true
+	}
+	return visible.String(), inComment
+}
+
+func nextLineIsSetextUnderline(lines []string, i int) bool {
+	if i+1 >= len(lines) {
+		return false
+	}
+	next := strings.TrimSuffix(lines[i+1], "\r")
+	if len(next)-len(strings.TrimLeft(next, " \t")) > 3 {
+		return false
+	}
+	underline := strings.TrimSpace(next)
+	return underline != "" && (strings.Trim(underline, "=") == "" || strings.Trim(underline, "-") == "")
 }
 
 func fenceMarker(line string) (byte, int) {
@@ -128,18 +160,20 @@ func isHorizontalRule(line string) bool {
 	return false
 }
 
-func stripListMarker(line string) (string, bool) {
+func stripListMarker(line string) (string, int, bool) {
 	if len(line) >= 2 && (line[0] == '-' || line[0] == '*' || line[0] == '+') && line[1] == ' ' {
-		return strings.TrimSpace(line[2:]), true
+		body := line[2:]
+		return strings.TrimSpace(body), len(line) - len(strings.TrimLeft(body, " \t")), true
 	}
 	i := 0
 	for i < len(line) && line[i] >= '0' && line[i] <= '9' {
 		i++
 	}
 	if i > 0 && i+1 < len(line) && (line[i] == '.' || line[i] == ')') && line[i+1] == ' ' {
-		return strings.TrimSpace(line[i+2:]), true
+		body := line[i+2:]
+		return strings.TrimSpace(body), len(line) - len(strings.TrimLeft(body, " \t")), true
 	}
-	return line, false
+	return line, 0, false
 }
 
 func isInstructionParagraph(line string) bool {
@@ -148,6 +182,8 @@ func isInstructionParagraph(line string) bool {
 		"always ", "never ", "do ", "don't ", "use ", "run ",
 		"avoid ", "prefer ", "ensure ", "keep ", "must ",
 		"should ", "check ", "write ", "follow ", "include ",
+		"add ", "commit ", "delete ", "edit ", "execute ",
+		"install ", "modify ", "remove ",
 	} {
 		if strings.HasPrefix(lower, prefix) {
 			return true

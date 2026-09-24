@@ -6,8 +6,10 @@ import (
 )
 
 type expectedRegressionDiagnostic struct {
-	line        int
-	relatedLine int
+	line          int
+	column        int
+	relatedLine   int
+	relatedColumn int
 }
 
 func TestRealWorldRegressionCorpus(t *testing.T) {
@@ -16,16 +18,16 @@ func TestRealWorldRegressionCorpus(t *testing.T) {
 		want []expectedRegressionDiagnostic
 	}{
 		{name: "realistic-clean"},
-		{name: "realistic-single-duplicate", want: []expectedRegressionDiagnostic{{line: 11, relatedLine: 5}}},
+		{name: "realistic-single-duplicate", want: []expectedRegressionDiagnostic{{line: 11, column: 1, relatedLine: 5, relatedColumn: 1}}},
 		{name: "false-positives"},
 		{name: "markdown-edge-cases"},
 		{name: "blockquotes"},
 		{name: "emphasis"},
-		{name: "heading-paragraphs", want: []expectedRegressionDiagnostic{{line: 14, relatedLine: 10}}},
-		{name: "inline-code", want: []expectedRegressionDiagnostic{{line: 6, relatedLine: 5}}},
-		{name: "ordered-lists", want: []expectedRegressionDiagnostic{{line: 7, relatedLine: 3}}},
-		{name: "nested-multiline", want: []expectedRegressionDiagnostic{{line: 8, relatedLine: 4}}},
-		{name: "japanese", want: []expectedRegressionDiagnostic{{line: 3, relatedLine: 2}}},
+		{name: "heading-paragraphs", want: []expectedRegressionDiagnostic{{line: 14, column: 1, relatedLine: 10, relatedColumn: 1}}},
+		{name: "inline-code", want: []expectedRegressionDiagnostic{{line: 6, column: 1, relatedLine: 5, relatedColumn: 1}}},
+		{name: "ordered-lists", want: []expectedRegressionDiagnostic{{line: 7, column: 1, relatedLine: 3, relatedColumn: 1}}},
+		{name: "nested-multiline", want: []expectedRegressionDiagnostic{{line: 8, column: 1, relatedLine: 4, relatedColumn: 3}}},
+		{name: "japanese", want: []expectedRegressionDiagnostic{{line: 3, column: 1, relatedLine: 2, relatedColumn: 1}}},
 		{name: "mixed-language"},
 		{name: "code-comments"},
 	}
@@ -43,8 +45,8 @@ func TestRealWorldRegressionCorpus(t *testing.T) {
 			for i, want := range tt.want {
 				diagnostic := result.Diagnostics[i]
 				if diagnostic.Rule != "duplicate-instruction" || diagnostic.Severity != Warning ||
-					diagnostic.File != path || diagnostic.Line != want.line || diagnostic.Column != 1 ||
-					diagnostic.Related.File != path || diagnostic.Related.Line != want.relatedLine || diagnostic.Related.Column != 1 {
+					diagnostic.File != path || diagnostic.Line != want.line || diagnostic.Column != want.column ||
+					diagnostic.Related.File != path || diagnostic.Related.Line != want.relatedLine || diagnostic.Related.Column != want.relatedColumn {
 					t.Fatalf("diagnostic %d = %#v, want line %d related %d", i, diagnostic, want.line, want.relatedLine)
 				}
 			}
