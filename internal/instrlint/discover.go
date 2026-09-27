@@ -46,12 +46,9 @@ func DiscoverWithExcludes(path string, excludes []string) ([]string, error) {
 		}
 	}
 
-	root := path
-	if info, err := os.Lstat(path); err == nil && info.Mode()&os.ModeSymlink != 0 {
-		root, err = filepath.EvalSymlinks(path)
-		if err != nil {
-			return nil, fmt.Errorf("resolve %q: %w", path, err)
-		}
+	root, err := discoveryRoot(path)
+	if err != nil {
+		return nil, err
 	}
 
 	var files []string
@@ -86,4 +83,15 @@ func DiscoverWithExcludes(path string, excludes []string) ([]string, error) {
 	}
 	sort.Strings(files)
 	return files, nil
+}
+
+func discoveryRoot(path string) (string, error) {
+	if info, err := os.Lstat(path); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		root, err := filepath.EvalSymlinks(path)
+		if err != nil {
+			return "", fmt.Errorf("resolve %q: %w", path, err)
+		}
+		return root, nil
+	}
+	return path, nil
 }

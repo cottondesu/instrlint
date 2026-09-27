@@ -14,6 +14,7 @@ AI coding agents increasingly rely on repository-level instructions such as `AGE
 
 - Duplicate instruction detection in `AGENTS.md`
 - High-confidence conflict detection for conservative English patterns
+- `AGENTS.md` hierarchy inspection with `instrlint scope`
 - Nested and multiline list item support
 - Fenced code block and HTML comment exclusion
 - UTF-8 and Japanese instruction support
@@ -71,12 +72,32 @@ instrlint .
 instrlint . --exclude .omx
 instrlint . --exclude .omx --exclude generated
 instrlint AGENTS.md
+instrlint scope .
 instrlint --help
 ```
 
 If built locally and not on your `PATH`, use `./instrlint` instead. A directory with no `AGENTS.md` prints `no supported instruction files found` and exits successfully. Clean files produce no output.
 
 `--exclude` may be repeated to skip directories before recursive scanning enters them. A directory name such as `.omx` matches at any depth; a relative directory path such as `tools/cache` matches only from the scan root. Absolute paths and paths escaping the scan root are rejected. The option is ignored when scanning a file directly. This is not glob or gitignore syntax; negation is not supported.
+
+## Inspecting AGENTS.md hierarchy
+
+Use `scope` to show the discovered `AGENTS.md` ancestry under a directory:
+
+```sh
+instrlint scope .
+instrlint scope . --exclude tools/cache
+```
+
+Example output:
+
+```text
+AGENTS.md
+├── backend/AGENTS.md
+└── frontend/AGENTS.md
+```
+
+Each file is shown under its nearest discovered ancestor `AGENTS.md`. If there is no ancestor file, it appears as a separate top-level root. Paths are relative to the scanned directory and use `/` separators. Names containing control characters are quoted to keep each node on one line. `scope` uses the same directory exclusions and symlink behavior as lint scanning. It reads file paths only, so even an `AGENTS.md` with invalid UTF-8 appears in the tree. It does not lint, merge instructions, infer overrides, or report cross-file conflicts. Use `instrlint scope --help` for command-specific help.
 
 ## Example output
 
@@ -100,8 +121,8 @@ Diagnostics go to stdout. Usage and filesystem errors go to stderr.
 
 | Code | Meaning |
 | --- | --- |
-| 0 | No lint violations |
-| 1 | Lint violations found |
+| 0 | No lint violations, or successful scope inspection |
+| 1 | Lint violations found (lint command only) |
 | 2 | Usage or runtime error |
 
 ## Development
@@ -121,6 +142,8 @@ Open a [GitHub issue](https://github.com/cottondesu/instrlint/issues) with a min
 ## Limitations
 
 Conflict detection is conservative and pattern-based. InstrLint does not detect semantic conflicts, cross-file conflicts, Japanese conflict patterns, ambiguous instructions, synonyms, or complex paraphrases. It is not a full CommonMark parser and has no LLM integration, configuration, or autofix. Paragraph recognition is intentionally conservative and may miss less common imperative forms. Blockquotes are excluded because they may be quotations, and emphasis-only variations are not analyzed as equivalent instructions. Japanese duplicate detection remains supported. Linting is local and deterministic: InstrLint does not use the network, execute Markdown content, or collect telemetry.
+
+Scope inspection does not model effective agent instructions, tool-specific precedence, or a target-specific instruction chain. It does not produce semantic hierarchy warnings or JSON output, and it does not add any new symlink-following behavior.
 
 ## License
 

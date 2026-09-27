@@ -20,6 +20,8 @@ Add a minimal fixture under `internal/instrlint/testdata/regression/` for parser
 
 Parser bug reports should include a minimal, sanitized `AGENTS.md`, expected and actual results, the InstrLint version, and the operating system. Remove private repository names, paths, URLs, credentials, and proprietary instructions.
 
+Scope hierarchy changes should include sanitized path-structure regression fixtures under `internal/instrlint/testdata/scope/`.
+
 ## Conflict rules
 
 Keep conflict detection conservative and explainable. Any new conflict pattern must include both positive tests and false-positive regression fixtures, including different-scope or similar-but-compatible examples where applicable.
