@@ -18,7 +18,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runScope(args[1:], stdout, stderr)
 	}
 	if len(args) == 1 && (args[0] == "-h" || args[0] == "--help") {
-		fmt.Fprintln(stdout, "Usage:\n  instrlint <file-or-directory> [--exclude <directory>]...\n  instrlint scope <directory> [--exclude <directory>]...\n\nCommands:\n  scope    Show the discovered AGENTS.md hierarchy.\n\nOptions:\n  --exclude <directory>  Skip a directory during recursive scanning; may be specified multiple times.\n  -h, --help             Show help.")
+		fmt.Fprintln(stdout, "Usage:\n  instrlint <file-or-directory> [--exclude <directory>]...\n  instrlint scope <directory> [--exclude <directory>]... [--format <tree|json>]\n\nCommands:\n  scope    Show the discovered AGENTS.md hierarchy.\n\nOptions:\n  --exclude <directory>  Skip a directory during recursive scanning; may be specified multiple times.\n  --format <tree|json>   Output format for scope only. Default: tree.\n  -h, --help             Show help.")
 		return 0
 	}
 	path, excludes, ok := parseArgs(args)
@@ -48,18 +48,25 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 func runScope(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 1 && (args[0] == "-h" || args[0] == "--help") {
-		fmt.Fprintln(stdout, "Usage:\n  instrlint scope <directory> [--exclude <directory>]...\n\nShow the discovered AGENTS.md hierarchy under a directory.\n\nThis command reports file hierarchy only.\nIt does not lint, merge, or interpret instructions.")
+		fmt.Fprintln(stdout, "Usage:\n  instrlint scope <directory> [--exclude <directory>]... [--format <tree|json>]\n\nShow the discovered AGENTS.md hierarchy under a directory.\n\nOptions:\n  --exclude <directory>  Skip a directory during recursive scanning; may be specified multiple times.\n  --format <tree|json>   Output format. Default: tree.\n  -h, --help             Show help.\n\nThis command reports file hierarchy only.\nIt does not lint, merge, or interpret instructions.")
 		return 0
 	}
-	path, excludes, ok := parseArgs(args)
+	path, excludes, format, ok := parseScopeArgs(args)
 	if !ok {
-		fmt.Fprintln(stderr, "usage: instrlint scope <directory> [--exclude <directory>]... (use -h for help)")
+		fmt.Fprintln(stderr, "usage: instrlint scope <directory> [--exclude <directory>]... [--format <tree|json>] (use -h for help)")
 		return 2
 	}
 	nodes, err := instrlint.Scope(path, excludes)
 	if err != nil {
 		fmt.Fprintln(stderr, "instrlint:", instrlint.SafeScopeText(err.Error()))
 		return 2
+	}
+	if format == "json" {
+		if err := instrlint.RenderScopeJSON(stdout, nodes); err != nil {
+			fmt.Fprintln(stderr, "instrlint:", instrlint.SafeScopeText(err.Error()))
+			return 2
+		}
+		return 0
 	}
 	if len(nodes) == 0 {
 		fmt.Fprintln(stdout, "no supported instruction files found")
@@ -70,6 +77,42 @@ func runScope(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	return 0
+}
+
+// parseScopeArgs extends the lint argument syntax with a single
+// --format <tree|json> option that only the scope command accepts.
+func parseScopeArgs(args []string) (string, []string, string, bool) {
+	var path, format string
+	var excludes []string
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--exclude":
+			if i+1 == len(args) {
+				return "", nil, "", false
+			}
+			i++
+			excludes = append(excludes, args[i])
+			continue
+		case "--format":
+			if i+1 == len(args) || format != "" || args[i+1] != "tree" && args[i+1] != "json" {
+				return "", nil, "", false
+			}
+			i++
+			format = args[i]
+			continue
+		}
+		if args[i] == "" || strings.HasPrefix(args[i], "-") || path != "" {
+			return "", nil, "", false
+		}
+		path = args[i]
+	}
+	if path == "" {
+		return "", nil, "", false
+	}
+	if format == "" {
+		format = "tree"
+	}
+	return path, excludes, format, true
 }
 
 func parseArgs(args []string) (string, []string, bool) {

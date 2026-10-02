@@ -22,6 +22,8 @@ Parser bug reports should include a minimal, sanitized `AGENTS.md`, expected and
 
 Scope hierarchy changes should include sanitized path-structure regression fixtures under `internal/instrlint/testdata/scope/`.
 
+Scope JSON schema changes should include deterministic serialization and round-trip regression tests. Breaking changes to the JSON contract require a new `schema_version`.
+
 ## Conflict rules
 
 Keep conflict detection conservative and explainable. Any new conflict pattern must include both positive tests and false-positive regression fixtures, including different-scope or similar-but-compatible examples where applicable.
