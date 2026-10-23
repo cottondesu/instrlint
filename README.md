@@ -14,7 +14,7 @@ AI coding agents increasingly rely on repository-level instructions such as `AGE
 
 - Duplicate instruction detection in `AGENTS.md`
 - High-confidence conflict detection for conservative English patterns
-- `AGENTS.md` hierarchy inspection with `instrlint scope`, as a tree or JSON
+- `AGENTS.md` hierarchy inspection with `instrlint scope`, as a tree or JSON, including target ancestor selection
 - Nested and multiline list item support
 - Fenced code block and HTML comment exclusion
 - UTF-8 and Japanese instruction support
@@ -74,6 +74,8 @@ instrlint . --exclude .omx --exclude generated
 instrlint AGENTS.md
 instrlint scope .
 instrlint scope . --format json
+instrlint scope . --for backend/api/user.go
+instrlint scope . --for backend/api/user.go --format json
 instrlint --help
 ```
 
@@ -98,7 +100,39 @@ AGENTS.md
 └── frontend/AGENTS.md
 ```
 
-Each file is shown under its nearest discovered ancestor `AGENTS.md`. If there is no ancestor file, it appears as a separate top-level root. Paths are relative to the scanned directory and use `/` separators. Names containing control characters are quoted to keep each node on one line. `scope` uses the same directory exclusions and symlink behavior as lint scanning. It reads file paths only, so even an `AGENTS.md` with invalid UTF-8 appears in the tree. It does not lint, merge instructions, infer overrides, or report cross-file conflicts. Use `instrlint scope --help` for command-specific help.
+Each file is shown under its nearest discovered ancestor `AGENTS.md`. If there is no ancestor file, it appears as a separate top-level root. Paths are relative to the scanned directory and use `/` separators. Names containing control characters are quoted to keep each node on one line. `scope` uses the same directory exclusions and symlink behavior as lint scanning: a directory symlink specified as the scan root is resolved, while descendant symlinks are not followed. It reads file paths only, so even an `AGENTS.md` with invalid UTF-8 content appears in the tree. It does not lint, merge instructions, infer overrides, or report cross-file conflicts. Use `instrlint scope --help` for command-specific help.
+
+### Selecting a target's discovered ancestors
+
+```text
+instrlint scope <directory> [--exclude <directory>]... [--format <tree|json>] [--for <path>]
+```
+
+Use `--for` to list only the `AGENTS.md` files InstrLint discovered on the target's directory ancestry:
+
+```sh
+instrlint scope . --for backend/api/user.go
+instrlint scope . --for backend/api/user.go --format json
+instrlint scope /work/project --for backend/api/user.go
+```
+
+The target is always relative to the scan root, so the last command targets `/work/project/backend/api/user.go`, regardless of the working directory. Existing regular files use their parent directory as the context. Existing directories include their own discovered `AGENTS.md`. `--for .` selects only the scan root's `AGENTS.md`, if present. A planned file whose parent directory already exists is also accepted; this does not guarantee that the file will be created. An absent final component ending in a directory separator or `/.` is rejected rather than inferred to be a new directory.
+
+Absolute paths, volume-qualified Windows paths, any `..` component, special files, dangling symlinks, and target paths through descendant symlinks are errors (exit 2). Descendant symlinks are rejected even when they point inside the scan root; an existing scan-root directory symlink remains supported. A target inside a default or explicit excluded directory is an error, because discovery skipped that subtree. The scan root itself remains exempt from exclusions, and `.omx` is not excluded by default. `./-name` can address a name beginning with `-`.
+
+`--for` is accepted only by `scope`, at most once, and options may appear in any order. It supports both output formats and repeated `--exclude`. There is no `--for=` syntax or short alias. Without `--for`, the full hierarchy output is unchanged.
+
+For a nested target, tree output retains full scan-root-relative paths:
+
+```text
+AGENTS.md
+└── backend/AGENTS.md
+    └── backend/api/AGENTS.md
+```
+
+Missing intermediate `AGENTS.md` files are skipped. If the scan root has no `AGENTS.md`, the outermost discovered ancestor starts the chain; no synthetic root is added. When no matching ancestor is discovered, tree output is exactly `no matching instruction files found` followed by a newline, and JSON output is `{"schema_version":1,"entries":[]}` followed by a newline. Both succeed with exit 0 and empty stderr. Without `--for`, an empty tree continues to print `no supported instruction files found`.
+
+This is a filesystem ancestor list, not an effective-instruction resolver or a complete list of instructions applied to the target. It does not interpret Codex-specific precedence or instruction loading, inheritance, overrides, `AGENTS.override.md`, or global user instructions.
 
 ### JSON output
 
@@ -127,6 +161,8 @@ The CLI prints the same document as compact JSON on one line, followed by a newl
 - `path` is relative to the scanned directory and uses `/` separators, the same path the tree shows.
 - `parent` is the `path` of the nearest discovered ancestor `AGENTS.md`, or `null` for a top-level root. A rootless forest has several `null` parents.
 - Entries are ordered depth-first, with roots and siblings in lexical order, so every parent appears before its children. Output bytes are deterministic.
+
+`--for` reuses this unchanged schema version 1 with no target metadata. Its entries form zero or one chain, ordered root to leaf; the first entry has `parent: null`, and each following entry references the preceding selected path.
 
 Control and other non-graphic characters in paths, including Unicode bidirectional controls, are written as standard JSON escapes such as `\n`, `\u001b`, or `\u202e`, so decoded values match the original paths exactly. A path that is not valid UTF-8 cannot be represented losslessly in JSON; it is reported as an error with exit code 2 and no output on stdout. On success, stdout holds exactly one JSON document and stderr is empty. On usage, filesystem, or rendering errors, stdout is empty; if writing to stdout itself fails, the exit code is 2 and the output may be incomplete.
 
@@ -176,7 +212,7 @@ Open a [GitHub issue](https://github.com/cottondesu/instrlint/issues) with a min
 
 Conflict detection is conservative and pattern-based. InstrLint does not detect semantic conflicts, cross-file conflicts, Japanese conflict patterns, ambiguous instructions, synonyms, or complex paraphrases. It is not a full CommonMark parser and has no LLM integration, configuration, or autofix. Paragraph recognition is intentionally conservative and may miss less common imperative forms. Blockquotes are excluded because they may be quotations, and emphasis-only variations are not analyzed as equivalent instructions. Japanese duplicate detection remains supported. Linting is local and deterministic: InstrLint does not use the network, execute Markdown content, or collect telemetry.
 
-Scope inspection does not model effective agent instructions, tool-specific precedence, or a target-specific instruction chain. It does not produce semantic hierarchy warnings, and it does not add any new symlink-following behavior. JSON output is available only for `scope`; lint diagnostics are not available as JSON.
+Scope inspection reports discovered filesystem ancestry, including a target's ancestor chain with `--for`. It does not model effective agent instructions or tool-specific precedence, produce semantic hierarchy warnings, or add any new symlink-following behavior. JSON output is available only for `scope`; lint diagnostics are not available as JSON.
 
 ## License
 

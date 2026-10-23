@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 )
 
 var excludedDirectories = map[string]bool{
@@ -30,20 +29,9 @@ func DiscoverWithExcludes(path string, excludes []string) ([]string, error) {
 		}
 		return []string{path}, nil
 	}
-	excludedNames := make(map[string]bool)
-	excludedPaths := make(map[string]bool)
-	for _, exclude := range excludes {
-		isPath := strings.ContainsRune(exclude, '/') || strings.ContainsRune(exclude, filepath.Separator)
-		clean := filepath.Clean(exclude)
-		if exclude == "" || clean == "." || clean == ".." || filepath.IsAbs(clean) ||
-			filepath.VolumeName(clean) != "" || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
-			return nil, fmt.Errorf("invalid exclude %q: expected a directory name or scan-root-relative path", exclude)
-		}
-		if isPath {
-			excludedPaths[clean] = true
-		} else {
-			excludedNames[clean] = true
-		}
+	rules, err := newDirectoryExclusions(excludes)
+	if err != nil {
+		return nil, err
 	}
 
 	root, err := discoveryRoot(path)
@@ -58,17 +46,12 @@ func DiscoverWithExcludes(path string, excludes []string) ([]string, error) {
 		}
 		if entry.IsDir() {
 			if current != root {
-				if excludedDirectories[entry.Name()] || excludedNames[entry.Name()] {
-					return filepath.SkipDir
+				relative, err := filepath.Rel(root, current)
+				if err != nil {
+					return err
 				}
-				if len(excludedPaths) > 0 {
-					relative, err := filepath.Rel(root, current)
-					if err != nil {
-						return err
-					}
-					if excludedPaths[relative] {
-						return filepath.SkipDir
-					}
+				if rules.matches(relative) {
+					return filepath.SkipDir
 				}
 			}
 			return nil

@@ -22,6 +22,8 @@ Parser bug reports should include a minimal, sanitized `AGENTS.md`, expected and
 
 Scope hierarchy changes should include sanitized path-structure regression fixtures under `internal/instrlint/testdata/scope/`.
 
+Target selection and path-boundary changes must test existing files, directories, planned files with existing parents, raw parent traversal, descendant symlinks, scan-root symlinks, shared exclusions, and filesystem case spelling. Define expected ancestor paths independently from the selection implementation, and assert exact tree/JSON paths, parents, ordering, safe Unicode/control handling, empty output, exit codes, and stdout/stderr behavior. Preserve scope output without `--for` and lint behavior. Include Windows volume and separator cases; record platform skips explicitly. Run `go test -race -shuffle=on -count=1 ./...` alongside the normal checks.
+
 Scope JSON schema changes should include deterministic serialization and round-trip regression tests. Breaking changes to the JSON contract require a new `schema_version`.
 
 ## Conflict rules
