@@ -64,3 +64,14 @@ jobs:
 
       - name: Test
         run: go test ./...
+
+      - name: Diagnose Windows namespace collision
+        shell: pwsh
+        run: |
+          $os = Get-CimInstance Win32_OperatingSystem
+          "windows_caption=$($os.Caption)" >> $env:GITHUB_OUTPUT
+          "windows_version=$($os.Version)" >> $env:GITHUB_OUTPUT
+          "go_version=$(go version)" >> $env:GITHUB_OUTPUT
+          "checkout_sha=$(git rev-parse HEAD)" >> $env:GITHUB_OUTPUT
+          go test -v -count=1 -run '^TestCLIScopeFor_windowsNamespaceCollision$' ./cmd/instrlint
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
