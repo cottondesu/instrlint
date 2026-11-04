@@ -18,10 +18,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runScope(args[1:], stdout, stderr)
 	}
 	if len(args) == 1 && (args[0] == "-h" || args[0] == "--help") {
-		fmt.Fprintln(stdout, "Usage:\n  instrlint <file-or-directory> [--exclude <directory>]...\n  instrlint scope <directory> [--exclude <directory>]... [--format <tree|json>] [--for <path>]\n\nCommands:\n  scope    Show the discovered AGENTS.md hierarchy.\n\nOptions:\n  --exclude <directory>  Skip a directory during recursive scanning; may be specified multiple times.\n  --format <tree|json>   Output format for scope only. Default: tree.\n  --for <path>           Select discovered ancestors of a scan-root-relative target (scope only).\n  -h, --help             Show help.")
+		fmt.Fprintln(stdout, "Usage:\n  instrlint <file-or-directory> [--exclude <directory>]...\n  instrlint scope <directory> [--exclude <directory>]... [--format <tree|json>] [--for <path>]\n\nCommands:\n  scope    Show the discovered AGENTS.md hierarchy.\n\nOptions:\n  --exclude <directory>  Skip a directory during recursive scanning; may be specified multiple times.\n  --format <text|json>   Output format for lint diagnostics. Default: text.\n  --format <tree|json>   Output format for scope only. Default: tree.\n  --for <path>           Select discovered ancestors of a scan-root-relative target (scope only).\n  -h, --help             Show help.")
 		return 0
 	}
-	path, excludes, ok := parseArgs(args)
+	path, excludes, format, ok := parseArgs(args)
 	if !ok {
 		fmt.Fprintln(stderr, "usage: instrlint <file-or-directory> [--exclude <directory>]... (use -h for help)")
 		return 2
@@ -29,8 +29,22 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 	result, err := instrlint.LintWithExcludes(path, excludes)
 	if err != nil {
-		fmt.Fprintln(stderr, "instrlint:", err)
+		if format == "json" {
+			fmt.Fprintln(stderr, "instrlint:", instrlint.SafeScopeText(err.Error()))
+		} else {
+			fmt.Fprintln(stderr, "instrlint:", err)
+		}
 		return 2
+	}
+	if format == "json" {
+		if err := instrlint.RenderLintJSON(stdout, result.Diagnostics); err != nil {
+			fmt.Fprintln(stderr, "instrlint:", instrlint.SafeScopeText(err.Error()))
+			return 2
+		}
+		if len(result.Diagnostics) > 0 {
+			return 1
+		}
+		return 0
 	}
 	if result.Files == 0 {
 		fmt.Fprintln(stdout, "no supported instruction files found")
@@ -146,25 +160,37 @@ func (w scopeOutputWriter) Write(p []byte) (int, error) {
 	return n, err
 }
 
-func parseArgs(args []string) (string, []string, bool) {
-	var path string
+// parseArgs adds the lint --format option to the basic path/exclude syntax.
+func parseArgs(args []string) (string, []string, string, bool) {
+	var path, format string
 	var excludes []string
 	for i := 0; i < len(args); i++ {
-		if args[i] == "--exclude" {
+		switch args[i] {
+		case "--exclude":
 			if i+1 == len(args) {
-				return "", nil, false
+				return "", nil, "", false
 			}
 			i++
 			excludes = append(excludes, args[i])
 			continue
+		case "--format":
+			if i+1 == len(args) || format != "" || args[i+1] != "text" && args[i+1] != "json" {
+				return "", nil, "", false
+			}
+			i++
+			format = args[i]
+			continue
 		}
 		if args[i] == "" || strings.HasPrefix(args[i], "-") || path != "" {
-			return "", nil, false
+			return "", nil, "", false
 		}
 		path = args[i]
 	}
 	if path == "" {
-		return "", nil, false
+		return "", nil, "", false
 	}
-	return path, excludes, true
+	if format == "" {
+		format = "text"
+	}
+	return path, excludes, format, true
 }
