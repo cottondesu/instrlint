@@ -14,6 +14,7 @@ AI coding agents increasingly rely on repository-level instructions such as `AGE
 
 - Duplicate instruction detection in `AGENTS.md`
 - High-confidence conflict detection for conservative English patterns
+- Machine-readable lint diagnostics with `--format json`
 - `AGENTS.md` hierarchy inspection with `instrlint scope`, as a tree or JSON, including target ancestor selection
 - Nested and multiline list item support
 - Fenced code block and HTML comment exclusion
@@ -72,6 +73,9 @@ instrlint .
 instrlint . --exclude .omx
 instrlint . --exclude .omx --exclude generated
 instrlint AGENTS.md
+instrlint . --format text
+instrlint . --format json
+instrlint . --exclude .omx --format json
 instrlint scope .
 instrlint scope . --format json
 instrlint scope . --for backend/api/user.go
@@ -79,7 +83,7 @@ instrlint scope . --for backend/api/user.go --format json
 instrlint --help
 ```
 
-If built locally and not on your `PATH`, use `./instrlint` instead. A directory with no `AGENTS.md` prints `no supported instruction files found` and exits successfully. Clean files produce no output.
+If built locally and not on your `PATH`, use `./instrlint` instead. A directory with no `AGENTS.md` prints `no supported instruction files found` and exits successfully. Clean files produce no output. In JSON mode both cases print `{"schema_version":1,"diagnostics":[]}` instead; see [JSON lint output](#json-lint-output).
 
 `--exclude` may be repeated to skip directories before recursive scanning enters them. A directory name such as `.omx` matches at any depth; a relative directory path such as `tools/cache` matches only from the scan root. Absolute paths and paths escaping the scan root are rejected. The option is ignored when scanning a file directly. This is not glob or gitignore syntax; negation is not supported.
 
@@ -136,7 +140,7 @@ This is a filesystem ancestor list, not an effective-instruction resolver or a c
 
 ### JSON output
 
-Use `--format json` for machine-readable hierarchy output. `--format tree` is the default and prints the tree shown above. `--format` is accepted only by `scope`.
+Use `--format json` for machine-readable hierarchy output. `--format tree` is the default and prints the tree shown above. These `tree` and `json` values are accepted only by `scope`; lint has its own `--format text|json` described in [JSON lint output](#json-lint-output).
 
 ```sh
 instrlint scope . --format json
@@ -185,6 +189,44 @@ AGENTS.md:2:1: warning conflicting-instruction: Conflicting instruction: Never u
 ```
 
 Diagnostics go to stdout. Usage and filesystem errors go to stderr.
+
+## JSON lint output
+
+```sh
+instrlint . --format json
+instrlint . --format text
+instrlint . --exclude .omx --format json
+```
+
+`--format` selects the lint output format: `text` (the default and identical to previous versions) or `json`. It is accepted at most once, its value must be exactly `text` or `json` (there is no `--format=` form), and it may be combined with repeated `--exclude` in any order. `--for` remains scope-only.
+
+```json
+{
+  "schema_version": 1,
+  "diagnostics": [
+    {
+      "path": "AGENTS.md",
+      "line": 2,
+      "column": 1,
+      "severity": "warning",
+      "rule": "duplicate-instruction",
+      "message": "Duplicate instruction: Always run tests.",
+      "related": {"path": "AGENTS.md", "line": 1, "column": 1}
+    }
+  ]
+}
+```
+
+The CLI prints the same document as compact JSON on one line, followed by a newline. The contract for `schema_version` 1:
+
+- `diagnostics` is always an array; it is `[]` when there are no findings or no supported instruction files, and no human-readable message is printed in JSON mode.
+- `path`, `line`, `column`, `severity`, `rule`, and `message` carry the same values the text output reports. `path` is the verbatim scan string: discovered paths are built from the scan-root argument exactly as given (`instrlint src` reports `src/AGENTS.md`, `instrlint .` reports `AGENTS.md`, an absolute scan root reports absolute paths), a direct file argument is reported exactly as passed, and Windows uses `\` separators. Unlike `scope` JSON, paths are not converted to scan-root-relative `/` form.
+- `related` reports the earlier location for `duplicate-instruction` and `conflicting-instruction`. It is omitted when a rule has no related location, so consumers must treat it as optional.
+- Field order and diagnostic order are fixed; diagnostics appear in the same order as the text output, and output bytes are deterministic.
+
+Exit codes are unchanged: `1` when diagnostics are found, `0` when there are none or no instruction files, `2` on usage, filesystem, parse, or output errors.
+
+Control and other non-graphic characters in paths and messages, including Unicode bidirectional controls, are written as standard JSON escapes such as `\n`, `\u001b`, or `\u202e`, so decoded values match the original text exactly. Japanese and other graphic Unicode text is emitted as raw UTF-8. A string that is not valid UTF-8 cannot be represented losslessly in JSON; it is reported as an error with exit code `2` and no output on stdout. On Windows, filenames that are not valid UTF-16 are already replaced with U+FFFD by Go's file layer before InstrLint sees them, so this rejection cannot trigger from paths there. On success, stdout holds exactly one JSON document and stderr is empty. If writing to stdout itself fails, the exit code is `2` and the output may be incomplete. JSON rendering failures never fall back to text output.
 
 ## Exit codes
 

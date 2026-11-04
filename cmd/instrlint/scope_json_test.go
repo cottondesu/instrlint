@@ -79,8 +79,8 @@ func TestCLIScopeFormat_parsing(t *testing.T) {
 		{"exclude equals syntax", []string{"scope", root, "--exclude=foo", "--format", "json"}},
 		{"json alias", []string{"scope", root, "--json"}},
 		{"short json alias", []string{"scope", root, "-j"}},
-		{"lint directory", []string{root, "--format", "json"}},
-		{"lint file", []string{filepath.Join(root, "AGENTS.md"), "--format", "json"}},
+		{"lint directory with scope-only option", []string{root, "--for", "new.go"}},
+		{"lint file with scope-only option", []string{filepath.Join(root, "AGENTS.md"), "--for", "new.go"}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			var stdout, stderr bytes.Buffer
