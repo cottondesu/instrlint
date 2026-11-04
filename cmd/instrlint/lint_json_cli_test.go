@@ -127,20 +127,24 @@ func TestCLIJSONFormat(t *testing.T) {
 			if len(diagnostics) != tt.wantCount {
 				t.Fatalf("diagnostics = %+v from %q", diagnostics, stdout.String())
 			}
-			omxPath := filepath.Join(root, "omx")
+			omxPrefix := filepath.Join(root, "omx") + string(filepath.Separator)
+			foundOmx := false
 			for _, diagnostic := range diagnostics {
 				if diagnostic.Rule != "duplicate-instruction" && diagnostic.Rule != "conflicting-instruction" {
 					t.Fatalf("unexpected rule %q in %q", diagnostic.Rule, stdout.String())
 				}
-				if !tt.wantOmx && strings.Contains(diagnostic.Path, omxPath) {
-					t.Fatalf("excluded directory still reported: %q", stdout.String())
+				if strings.HasPrefix(diagnostic.Path, omxPrefix) {
+					foundOmx = true
+					if !tt.wantOmx {
+						t.Fatalf("excluded directory still reported: %q", stdout.String())
+					}
 				}
 				if diagnostic.Line == 0 || diagnostic.Column == 0 {
 					t.Fatalf("missing location in %q", stdout.String())
 				}
 			}
-			if tt.wantOmx && !strings.Contains(stdout.String(), omxPath) {
-				t.Fatalf("omx findings missing: %q", stdout.String())
+			if foundOmx != tt.wantOmx {
+				t.Fatalf("omx presence = %v, want %v; diagnostics = %+v", foundOmx, tt.wantOmx, diagnostics)
 			}
 			if tt.wantRules != nil {
 				for i, rule := range tt.wantRules {
